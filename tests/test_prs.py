@@ -128,3 +128,12 @@ def test_is_muted():
 def test_clip():
     assert clip("x" * 701) == "x" * 700 + "\u2026"
     assert clip("short") == "short"
+
+
+def test_diff_events_respects_disabled():
+    record = {}
+    comment = {"id": 1, "user": {"login": "alice"}, "body": "hi"}
+    events = diff_events(record, snap(), [comment], [], disabled={"green"})
+    assert [e.kind for e in events] == ["comment"]
+    assert record["green_sha"] == "abc"
+    assert diff_events(record, snap(), [], []) == []

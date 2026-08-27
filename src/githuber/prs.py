@@ -78,7 +78,7 @@ def review_note(review):
     return Note("comment", author, body)
 
 
-def diff_events(record, snap, fresh_comments, fresh_reviews):
+def diff_events(record, snap, fresh_comments, fresh_reviews, disabled=frozenset()):
     events = []
     if snap.ci == "green" and record.get("green_sha") != snap.sha:
         record["green_sha"] = snap.sha
@@ -96,7 +96,8 @@ def diff_events(record, snap, fresh_comments, fresh_reviews):
         if review["id"] not in seen:
             seen.append(review["id"])
             events.append(review_note(review))
-    return [e for e in events if e.kind in ("green", "conflict", "verdict") or e.body.strip()]
+    substantial = (e for e in events if e.kind in ("green", "conflict", "verdict") or e.body.strip())
+    return [e for e in substantial if e.kind not in disabled]
 
 
 def html_escape(text):

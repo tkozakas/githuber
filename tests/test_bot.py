@@ -46,3 +46,17 @@ def test_webhook_signature():
     good = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
     assert server._valid(good, body)
     assert not server._valid("sha256=bad", body)
+
+
+def test_toggles_cover_all_note_kinds():
+    from githuber.bot import TOGGLES
+
+    assert set(TOGGLES.values()) == {"green", "conflict", "comment", "verdict"}
+
+
+def test_store_disabled_round_trip(tmp_path):
+    path = str(tmp_path / "state.json")
+    store = Store(path)
+    store.disabled.append("comments")
+    store.save()
+    assert Store(path).disabled == ["comments"]

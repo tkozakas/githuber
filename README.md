@@ -3,6 +3,14 @@
 Telegram bot that tracks your open GitHub PRs: CI results, reviews, comments,
 and merge conflicts. One live message per PR.
 
+## Why?
+
+The GitHub app just doesn't have enough for me. It pings me about all kinds of useless
+stuff, but the things I actually wait for? Silence. CI finally went green on my PR:
+nothing. Someone merged ahead of me and now my PR has conflicts: nothing, I find out
+when I open the page. I just want to be aware of these things without checking
+the tab every five minutes, and GitHub does not give me this. So this bot does.
+
 Notifies on:
 
 - CI going green (once per commit)
@@ -18,6 +26,9 @@ Notifies on:
 | `/mute org/repo` or `/mute org/repo#7` | Silence a repo or a single PR |
 | `/unmute <target>` | Remove a mute |
 | `/mutes` | List active mutes |
+| `/disable comments` | Turn a notification type off (green, conflicts, comments, verdicts) |
+| `/enable comments` | Turn it back on |
+| `/settings` | Show notification toggles |
 | `/help` | Show commands |
 
 ## Configuration

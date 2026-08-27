@@ -9,6 +9,7 @@ class Store:
         self.data.setdefault("prs", {})
         self.data.setdefault("mutes", [])
         self.data.setdefault("offset", 0)
+        self.data.setdefault("disabled", [])
 
     @property
     def prs(self):
@@ -17,6 +18,10 @@ class Store:
     @property
     def mutes(self):
         return self.data["mutes"]
+
+    @property
+    def disabled(self):
+        return self.data["disabled"]
 
     @property
     def offset(self):

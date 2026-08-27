@@ -14,11 +14,16 @@ from githuber.webhook import WebhookServer
 FRESH_WINDOW = timedelta(minutes=15)
 UPDATES_TIMEOUT = 10
 
+TOGGLES = {"green": "green", "conflicts": "conflict", "comments": "comment", "verdicts": "verdict"}
+
 COMMANDS = [
     ("status", "List open PRs with CI and review state"),
     ("mute", "Mute a repo or PR: /mute org/repo or org/repo#7"),
     ("unmute", "Unmute a repo or PR"),
     ("mutes", "List active mutes"),
+    ("disable", "Turn a notification off: /disable comments"),
+    ("enable", "Turn a notification back on"),
+    ("settings", "Show notification toggles"),
     ("help", "Show available commands"),
 ]
 
@@ -69,7 +74,8 @@ class Bot:
                 continue
             snap, fresh_comments, fresh_reviews = self._inspect(repo, number, item, cutoff)
             snapshots[key] = snap
-            events = prs.diff_events(self.store.record(key), snap, fresh_comments, fresh_reviews)
+            disabled = {TOGGLES[t] for t in self.store.disabled}
+            events = prs.diff_events(self.store.record(key), snap, fresh_comments, fresh_reviews, disabled)
             if events:
                 self._publish(key, snap, events)
         self.snapshots = snapshots
@@ -145,8 +151,26 @@ class Bot:
         elif name == "mutes":
             body = "\n".join(prs.html_escape(m) for m in self.store.mutes) or "No mutes."
             self.tg.send(body)
+        elif name in ("disable", "enable"):
+            self._toggle(name, arg)
+        elif name == "settings":
+            self.tg.send(self._settings())
         elif name == "help":
-            self.tg.send("\n".join(f"/{cmd} \u2014 {desc}" for cmd, desc in COMMANDS))
+            self.tg.send("\n".join(f"/{cmd}: {desc}" for cmd, desc in COMMANDS))
+
+    def _toggle(self, action, arg):
+        if arg not in TOGGLES:
+            self.tg.send(f"Unknown notification. Options: {', '.join(TOGGLES)}")
+            return
+        if action == "disable" and arg not in self.store.disabled:
+            self.store.disabled.append(arg)
+        if action == "enable" and arg in self.store.disabled:
+            self.store.disabled.remove(arg)
+        self.store.save()
+        self.tg.send(self._settings())
+
+    def _settings(self):
+        return "\n".join(f"{name}: {'off' if name in self.store.disabled else 'on'}" for name in TOGGLES)
 
     def _guarded(self, step):
         try:
