@@ -46,6 +46,7 @@ Notifies on:
 
 When `WEBHOOK_SECRET` and `WEBHOOK_PORT` are set, the bot also listens for GitHub webhooks
 (`check_suite`, `pull_request`, reviews, comments) and refreshes immediately on delivery.
+If you don't set these, the bot polls instead, every `POLL_INTERVAL` seconds.
 
 ## Development
 
