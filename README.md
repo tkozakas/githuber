@@ -1,11 +1,7 @@
 # githuber
 
-Telegram bot (@githuber_bot) that tracks your open GitHub PRs: CI results, reviews, comments,
-and merge conflicts — one live message per PR.
-
-Polls the GitHub API for open PRs authored by the token owner (plus PRs merged in the last
-15 minutes, so nothing slips between polls). On each event the bot replaces the PR's previous
-message with an updated card, keeping a single up-to-date message per PR.
+Telegram bot that tracks your open GitHub PRs: CI results, reviews, comments,
+and merge conflicts. One live message per PR.
 
 Notifies on:
 
@@ -39,7 +35,6 @@ Notifies on:
 
 When `WEBHOOK_SECRET` and `WEBHOOK_PORT` are set, the bot also listens for GitHub webhooks
 (`check_suite`, `pull_request`, reviews, comments) and refreshes immediately on delivery.
-Polling remains active as the baseline for repos where webhooks can't be installed.
 
 ## Development
 
