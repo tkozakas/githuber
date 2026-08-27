@@ -52,9 +52,12 @@ If you don't set these, the bot polls instead, every `POLL_INTERVAL` seconds.
 
 ```sh
 uv sync
+git config core.hooksPath .githooks
 uv run --group dev pytest tests
 uv run --group dev ruff check .
 ```
+
+The pre-commit hook runs ruff lint and format checks.
 
 ## Running
 
