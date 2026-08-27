@@ -25,7 +25,10 @@ uv run --group dev pytest tests
 uv run --group dev ruff check .
 ```
 
-## Deployment
+## Running
 
-Pushes to `main` build `ghcr.io/tkozakas/githuber:main` (amd64 + arm64).
-Deployed as a Docker stack by the [homelab](https://github.com/tkozakas/homelab) Ansible setup.
+Pushes to `main` publish `ghcr.io/tkozakas/githuber:main` (amd64 + arm64).
+
+```sh
+docker compose up -d
+```
