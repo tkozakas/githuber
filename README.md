@@ -4,7 +4,7 @@ Telegram bot (@githuber_bot) that sends a message when CI goes green on your ope
 
 Polls the GitHub API for open PRs authored by the token owner, checks check-runs and commit
 statuses on each head SHA, and notifies once per PR-commit. Pushing new commits re-arms the
-notification.
+notification. Also notifies when someone comments or reviews your PRs.
 
 ## Configuration
 

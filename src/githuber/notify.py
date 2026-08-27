@@ -47,21 +47,47 @@ def github(cfg, path, params=None):
         return json.load(resp)
 
 
-def telegram_send(cfg, text):
-    body = json.dumps(
-        {
-            "chat_id": cfg.telegram_chat_id,
-            "text": text,
-            "disable_web_page_preview": True,
-        }
-    ).encode()
+def telegram_send(cfg, text, html=False):
+    payload = {
+        "chat_id": cfg.telegram_chat_id,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+    if html:
+        payload["parse_mode"] = "HTML"
     req = urllib.request.Request(
         f"https://api.telegram.org/bot{cfg.telegram_bot_token}/sendMessage",
-        data=body,
+        data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         resp.read()
+
+
+def html_escape(text):
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def format_comment(repo, number, title, comment):
+    author = comment["user"]["login"]
+    body = comment.get("body") or ""
+    if len(body) > 700:
+        body = body[:700] + "\u2026"
+    return (
+        f"\U0001f4ac <b>{html_escape(author)}</b> commented on "
+        f'<a href="{comment["html_url"]}">{html_escape(f"{repo}#{number}")}</a>'
+        f" \u2014 {html_escape(title)}\n"
+        f"<blockquote>{html_escape(body)}</blockquote>"
+    )
+
+
+def should_notify_comment(login, comment, cutoff):
+    user = comment.get("user") or {}
+    if user.get("login") == login or user.get("type") == "Bot":
+        return False
+    if not (comment.get("body") or "").strip():
+        return False
+    return (comment.get("created_at") or comment.get("submitted_at") or "") >= cutoff
 
 
 def is_green(check_runs, combined_status):
@@ -97,9 +123,46 @@ def search_queries(login, now):
     return [f"is:pr is:open author:{login}", f"is:pr author:{login} is:merged merged:>={cutoff}"]
 
 
+def fetch_comments(cfg, repo, number, cutoff):
+    comments = []
+    for path in (f"/repos/{repo}/issues/{number}/comments", f"/repos/{repo}/pulls/{number}/comments"):
+        comments.extend(github(cfg, path, {"since": cutoff, "per_page": "100"}))
+    for review in github(cfg, f"/repos/{repo}/pulls/{number}/reviews", {"per_page": "100"}):
+        comments.append(review)
+    return comments
+
+
+def notify_comments(cfg, login, state, seen, item, repo, number, cutoff):
+    for comment in fetch_comments(cfg, repo, number, cutoff):
+        key = f"comment:{repo}#{number}:{comment['id']}"
+        if not should_notify_comment(login, comment, cutoff):
+            continue
+        seen.add(key)
+        if state.get(key):
+            continue
+        telegram_send(cfg, format_comment(repo, number, item["title"], comment), html=True)
+        state[key] = True
+        print(f"notified {key}", flush=True)
+
+
+def notify_green(cfg, state, seen, item, repo, number, sha):
+    key = f"{repo}#{number}@{sha}"
+    seen.add(key)
+    if state.get(key):
+        return
+    check_runs = github(cfg, f"/repos/{repo}/commits/{sha}/check-runs", {"per_page": "100"})
+    combined = github(cfg, f"/repos/{repo}/commits/{sha}/status")
+    if is_green(check_runs, combined):
+        telegram_send(cfg, f"\u2705 CI green: {repo}#{number} \u2014 {item['title']}\n{item['html_url']}")
+        state[key] = True
+        print(f"notified {key}", flush=True)
+
+
 def poll(cfg, login, state):
+    now = datetime.now(UTC)
+    cutoff = (now - timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ")
     items = {}
-    for query in search_queries(login, datetime.now(UTC)):
+    for query in search_queries(login, now):
         result = github(cfg, "/search/issues", {"q": query, "per_page": "50"})
         for item in result.get("items", []):
             items[item["repository_url"] + str(item["number"])] = item
@@ -108,18 +171,8 @@ def poll(cfg, login, state):
         repo = item["repository_url"].split("/repos/")[1]
         number = item["number"]
         pr = github(cfg, f"/repos/{repo}/pulls/{number}")
-        sha = pr["head"]["sha"]
-        key = f"{repo}#{number}@{sha}"
-        seen.add(key)
-        if state.get(key):
-            continue
-
-        check_runs = github(cfg, f"/repos/{repo}/commits/{sha}/check-runs", {"per_page": "100"})
-        combined = github(cfg, f"/repos/{repo}/commits/{sha}/status")
-        if is_green(check_runs, combined):
-            telegram_send(cfg, f"\u2705 CI green: {repo}#{number} \u2014 {item['title']}\n{item['html_url']}")
-            state[key] = True
-            print(f"notified {key}", flush=True)
+        notify_green(cfg, state, seen, item, repo, number, pr["head"]["sha"])
+        notify_comments(cfg, login, state, seen, item, repo, number, cutoff)
     for key in list(state):
         if key not in seen:
             del state[key]

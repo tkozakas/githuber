@@ -75,3 +75,40 @@ def test_search_queries_include_recent_merges():
     queries = search_queries("tom", datetime(2026, 8, 27, 13, 20, tzinfo=UTC))
     assert queries[0] == "is:pr is:open author:tom"
     assert queries[1] == "is:pr author:tom is:merged merged:>=2026-08-27T13:05:00Z"
+
+
+def test_format_comment_escapes_and_links():
+    from githuber.notify import format_comment
+
+    msg = format_comment(
+        "org/repo",
+        7,
+        "Fix <thing>",
+        {"user": {"login": "alice"}, "body": "looks <good> & bad", "html_url": "https://x/1#c-1"},
+    )
+    assert "<b>alice</b>" in msg
+    assert '<a href="https://x/1#c-1">org/repo#7</a>' in msg
+    assert "Fix &lt;thing&gt;" in msg
+    assert "<blockquote>looks &lt;good&gt; &amp; bad</blockquote>" in msg
+
+
+def test_format_comment_truncates_long_body():
+    from githuber.notify import format_comment
+
+    msg = format_comment("o/r", 1, "t", {"user": {"login": "a"}, "body": "x" * 900, "html_url": "u"})
+    assert "x" * 700 + "\u2026" in msg
+    assert "x" * 701 not in msg
+
+
+def test_should_notify_comment_filters():
+    from githuber.notify import should_notify_comment
+
+    cutoff = "2026-08-27T13:00:00Z"
+    fresh = {"user": {"login": "bob", "type": "User"}, "body": "hi", "created_at": "2026-08-27T13:05:00Z"}
+    assert should_notify_comment("tom", fresh, cutoff)
+    assert not should_notify_comment("bob", fresh, cutoff)
+    assert not should_notify_comment("tom", {**fresh, "user": {"login": "ci[bot]", "type": "Bot"}}, cutoff)
+    assert not should_notify_comment("tom", {**fresh, "created_at": "2026-08-27T12:00:00Z"}, cutoff)
+    assert not should_notify_comment("tom", {**fresh, "body": "  "}, cutoff)
+    review = {"user": {"login": "bob", "type": "User"}, "body": "lgtm", "submitted_at": "2026-08-27T13:05:00Z"}
+    assert should_notify_comment("tom", review, cutoff)
