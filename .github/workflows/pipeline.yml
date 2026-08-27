@@ -96,5 +96,4 @@ jobs:
           DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
         if: env.DEPLOY_TOKEN != '' && env.DEPLOY_URL != ''
         run: |
-          curl -sf -X POST -H "Authorization: ${{ secrets.DEPLOY_TOKEN }}" \
-            "${{ secrets.DEPLOY_URL }}"
+          curl -sf -X POST --retry 5 --retry-delay 15 --retry-all-errors -H "Authorization: ${{ secrets.DEPLOY_TOKEN }}" "${{ secrets.DEPLOY_URL }}"
