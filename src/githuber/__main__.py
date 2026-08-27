@@ -1,3 +1,3 @@
-from githuber.notify import main
+from githuber.bot import main
 
 main()
