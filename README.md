@@ -27,8 +27,6 @@ uv run --group dev ruff check .
 
 ## Running
 
-Pushes to `main` publish `ghcr.io/tkozakas/githuber:main` (amd64 + arm64).
-
 ```sh
 docker compose up -d
 ```
