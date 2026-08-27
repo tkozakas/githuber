@@ -1,0 +1,29 @@
+[project]
+name = "githuber"
+version = "0.1.0"
+description = "Telegram notifications when GitHub PR CI goes green"
+readme = "README.md"
+authors = [
+    { name = "Tomas Kozakas", email = "tomas.kozakas@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.9",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/githuber"]

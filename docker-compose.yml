@@ -1,0 +1,18 @@
+services:
+  githuber:
+    image: ghcr.io/tkozakas/githuber:main
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_API_URL=${GITHUB_API_URL:-https://api.github.com}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - POLL_INTERVAL=${POLL_INTERVAL:-60}
+    volumes:
+      - state:/state
+    restart: unless-stopped
+
+volumes:
+  state:
