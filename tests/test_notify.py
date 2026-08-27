@@ -65,3 +65,13 @@ def test_state_file_is_valid_json(tmp_path):
     save_state(cfg, {"a": True})
     with open(cfg.state_file) as f:
         assert json.load(f) == {"a": True}
+
+
+def test_search_queries_include_recent_merges():
+    from datetime import UTC, datetime
+
+    from githuber.notify import search_queries
+
+    queries = search_queries("tom", datetime(2026, 8, 27, 13, 20, tzinfo=UTC))
+    assert queries[0] == "is:pr is:open author:tom"
+    assert queries[1] == "is:pr author:tom is:merged merged:>=2026-08-27T13:05:00Z"

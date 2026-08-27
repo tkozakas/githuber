@@ -5,6 +5,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 OK_CONCLUSIONS = {"success", "neutral", "skipped"}
 
@@ -91,10 +92,19 @@ def save_state(cfg, state):
     os.replace(tmp, cfg.state_file)
 
 
+def search_queries(login, now):
+    cutoff = (now - timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return [f"is:pr is:open author:{login}", f"is:pr author:{login} is:merged merged:>={cutoff}"]
+
+
 def poll(cfg, login, state):
-    result = github(cfg, "/search/issues", {"q": f"is:pr is:open author:{login}", "per_page": "50"})
+    items = {}
+    for query in search_queries(login, datetime.now(UTC)):
+        result = github(cfg, "/search/issues", {"q": query, "per_page": "50"})
+        for item in result.get("items", []):
+            items[item["repository_url"] + str(item["number"])] = item
     seen = set()
-    for item in result.get("items", []):
+    for item in items.values():
         repo = item["repository_url"].split("/repos/")[1]
         number = item["number"]
         pr = github(cfg, f"/repos/{repo}/pulls/{number}")
@@ -103,6 +113,7 @@ def poll(cfg, login, state):
         seen.add(key)
         if state.get(key):
             continue
+
         check_runs = github(cfg, f"/repos/{repo}/commits/{sha}/check-runs", {"per_page": "100"})
         combined = github(cfg, f"/repos/{repo}/commits/{sha}/status")
         if is_green(check_runs, combined):
