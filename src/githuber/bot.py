@@ -78,6 +78,8 @@ class Bot:
             events = prs.diff_events(self.store.record(key), snap, fresh_comments, fresh_reviews, disabled)
             if events:
                 self._publish(key, snap, events)
+            else:
+                self._refresh_card(key, snap)
         self.snapshots = snapshots
         self.store.prune(live)
         self.store.save()
@@ -129,10 +131,29 @@ class Bot:
 
     def _publish(self, key, snap, events):
         record = self.store.record(key)
+        notes_text = prs.render_notes(events)
+        text = prs.render_card(snap, notes_text)
         if record.get("message_id"):
             self.tg.delete(record["message_id"])
-        record["message_id"] = self.tg.send(prs.render_card(snap, events))
+        record["message_id"] = self.tg.send(text)
+        record["notes"] = notes_text
+        record["card"] = text
         print(f"notified {key}: {[e.kind for e in events]}", flush=True)
+
+    def _refresh_card(self, key, snap):
+        record = self.store.record(key)
+        message_id = record.get("message_id")
+        if not message_id:
+            return
+        text = prs.render_card(snap, record.get("notes", ""))
+        if text == record.get("card"):
+            return
+        if self.tg.edit(message_id, text):
+            record["card"] = text
+            print(f"updated {key}", flush=True)
+        else:
+            record["message_id"] = self.tg.send(text)
+            record["card"] = text
 
     def _handle(self, text):
         name, arg = parse_command(text)

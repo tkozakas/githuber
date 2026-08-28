@@ -108,9 +108,14 @@ def clip(body):
     return body[:BODY_LIMIT] + "\u2026" if len(body) > BODY_LIMIT else body
 
 
-def render_card(snap, notes=()):
+def render_notes(notes):
+    return "\n".join(filter(None, (_render_note(n) for n in notes)))
+
+
+def render_card(snap, notes_text=""):
     parts = [_title_line(snap), _status_line(snap)]
-    parts.extend(filter(None, (_render_note(n) for n in notes)))
+    if notes_text:
+        parts.append(notes_text)
     return "\n".join(parts)
 
 

@@ -7,6 +7,7 @@ from githuber.prs import (
     is_muted,
     latest_verdicts,
     render_card,
+    render_notes,
     render_status,
 )
 
@@ -95,14 +96,14 @@ def test_latest_verdict_wins_per_author():
 
 
 def test_render_card_escapes_and_quotes():
-    card = render_card(snap(), [Note("comment", "alice", "looks <good> & bad")])
+    card = render_card(snap(), render_notes([Note("comment", "alice", "looks <good> & bad")]))
     assert '<a href="https://github.com/org/repo/pull/7">org/repo#7</a>' in card
     assert "Fix &lt;thing&gt;" in card
     assert "<blockquote>looks &lt;good&gt; &amp; bad</blockquote>" in card
 
 
 def test_render_card_verdict_line():
-    card = render_card(snap(), [Note("verdict", "bob", "", "APPROVED")])
+    card = render_card(snap(), render_notes([Note("verdict", "bob", "", "APPROVED")]))
     assert "<b>bob</b> approved" in card
     assert "<blockquote>" not in card
 
@@ -137,3 +138,14 @@ def test_diff_events_respects_disabled():
     assert [e.kind for e in events] == ["comment"]
     assert record["green_sha"] == "abc"
     assert diff_events(record, snap(), [], []) == []
+
+
+def test_render_card_reflects_state_drift():
+    notes = render_notes([Note("green")])
+    green = render_card(snap(), notes)
+    red = render_card(snap(ci="failed"), notes)
+    conflicted = render_card(snap(conflicts=True), notes)
+    assert green != red
+    assert "CI failed" in red
+    assert "\u26a0\ufe0f conflicts".encode().decode("unicode_escape") in conflicted or "conflicts" in conflicted
+    assert notes in red

@@ -44,6 +44,34 @@ class Telegram:
         with contextlib.suppress(urllib.error.HTTPError):
             self.call("deleteMessage", {"chat_id": self.chat_id, "message_id": message_id})
 
+    def edit(self, message_id, text):
+        try:
+            self.call(
+                "editMessageText",
+                {
+                    "chat_id": self.chat_id,
+                    "message_id": message_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+            )
+            return True
+        except urllib.error.HTTPError as e:
+            description = self._description(e)
+            if "not modified" in description:
+                return True
+            if "not found" in description:
+                return False
+            raise
+
+    @staticmethod
+    def _description(error):
+        try:
+            return json.load(error).get("description", "")
+        except (json.JSONDecodeError, AttributeError):
+            return ""
+
     def updates(self, offset, timeout):
         return (
             self.call(
