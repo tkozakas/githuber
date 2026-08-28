@@ -78,9 +78,15 @@ class Bot:
             events = prs.diff_events(self.store.record(key), snap, fresh_comments, fresh_reviews, disabled)
             if events:
                 self._publish(key, snap, events)
+            elif snap.closed:
+                self._retire(key)
             else:
                 self._refresh_card(key, snap)
-        self.snapshots = snapshots
+        self.snapshots = {k: s for k, s in snapshots.items() if not s.closed}
+        for key, record in self.store.prs.items():
+            if key not in live and record.get("message_id"):
+                self.tg.delete(record["message_id"])
+                print(f"retired {key}", flush=True)
         self.store.prune(live)
         self.store.save()
 
@@ -116,6 +122,7 @@ class Bot:
             ci=prs.ci_state(self.gh.check_runs(repo, sha), self.gh.combined_status(repo, sha)),
             conflicts=pull.get("mergeable_state") == "dirty",
             reviews=tuple(self.gh.reviews(repo, number)),
+            closed=pull.get("state") != "open",
         )
         fresh_comments = [
             c
@@ -154,6 +161,14 @@ class Bot:
         else:
             record["message_id"] = self.tg.send(text)
             record["card"] = text
+
+    def _retire(self, key):
+        record = self.store.record(key)
+        message_id = record.pop("message_id", None)
+        if message_id:
+            self.tg.delete(message_id)
+            record["card"] = ""
+            print(f"retired {key}", flush=True)
 
     def _handle(self, text):
         name, arg = parse_command(text)

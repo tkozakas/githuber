@@ -30,6 +30,7 @@ class Snapshot:
     ci: str
     conflicts: bool
     reviews: tuple
+    closed: bool = False
 
 
 def pr_key(repo, number):
