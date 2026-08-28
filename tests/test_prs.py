@@ -97,8 +97,8 @@ def test_latest_verdict_wins_per_author():
 
 def test_render_card_escapes_and_quotes():
     card = render_card(snap(), render_notes([Note("comment", "alice", "looks <good> & bad")]))
-    assert '<a href="https://github.com/org/repo/pull/7">org/repo#7</a>' in card
-    assert "Fix &lt;thing&gt;" in card
+    assert '<a href="https://github.com/org/repo/pull/7">repo #7</a>' in card
+    assert "<b>Fix &lt;thing&gt;</b>" in card
     assert "<blockquote>looks &lt;good&gt; &amp; bad</blockquote>" in card
 
 
@@ -108,12 +108,13 @@ def test_render_card_verdict_line():
     assert "<blockquote>" not in card
 
 
-def test_render_card_status_line():
+def test_render_card_status_block():
     reviews = ({"user": {"login": "bob"}, "state": "APPROVED", "submitted_at": "2026-01-01T00:00:00Z"},)
     card = render_card(snap(conflicts=True, reviews=reviews))
-    assert "CI green" in card
-    assert "\u2705bob" in card
-    assert "conflicts" in card
+    assert "<code>CI     </code>\u2705 green" in card
+    assert "<code>Review </code>\u2705 bob" in card
+    assert "<code>Merge  </code>\u26a0\ufe0f conflicts" in card
+    assert card.startswith("\u26a0\ufe0f ")
 
 
 def test_render_status_empty():
@@ -146,6 +147,6 @@ def test_render_card_reflects_state_drift():
     red = render_card(snap(ci="failed"), notes)
     conflicted = render_card(snap(conflicts=True), notes)
     assert green != red
-    assert "CI failed" in red
+    assert "\u274c failed" in red
     assert "\u26a0\ufe0f conflicts".encode().decode("unicode_escape") in conflicted or "conflicts" in conflicted
     assert notes in red

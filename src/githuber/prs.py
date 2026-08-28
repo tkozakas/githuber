@@ -3,9 +3,13 @@ from dataclasses import dataclass
 OK_CONCLUSIONS = {"success", "neutral", "skipped"}
 BODY_LIMIT = 700
 
-CI_ICONS = {"green": "\u2705", "failed": "\u274c", "pending": "\u23f3", "none": "\u2b1c"}
-VERDICT_ICONS = {"APPROVED": "\u2705", "CHANGES_REQUESTED": "\U0001f534"}
+CI_ICONS = {"green": "\u2705", "failed": "\u274c", "pending": "\U0001f7e1", "none": "\u2796"}
+CI_LABELS = {"green": "green", "failed": "failed", "pending": "running", "none": "no checks"}
+OVERALL_ICONS = {"green": "\U0001f7e2", "failed": "\U0001f534", "pending": "\U0001f7e1", "none": "\u26aa\ufe0f"}
+CONFLICT_ICON = "\u26a0\ufe0f"
+VERDICT_ICONS = {"APPROVED": "\u2705", "CHANGES_REQUESTED": "\U0001f6d1"}
 VERDICT_VERBS = {"APPROVED": "approved", "CHANGES_REQUESTED": "requested changes"}
+STATUS_SEPARATOR = " \u00b7 "
 
 
 @dataclass(frozen=True)
@@ -113,32 +117,50 @@ def render_notes(notes):
 
 
 def render_card(snap, notes_text=""):
-    parts = [_title_line(snap), _status_line(snap)]
+    parts = [
+        _title_line(snap),
+        f"<b>{html_escape(snap.title)}</b>",
+        "",
+        _status_block(snap),
+    ]
     if notes_text:
-        parts.append(notes_text)
+        parts.extend(("", notes_text))
     return "\n".join(parts)
 
 
 def render_status(snapshots):
     if not snapshots:
         return "No open PRs."
-    return "\n".join(_title_line(s) for s in snapshots)
+    return "\n".join(f"{_title_line(s)} \u2014 {html_escape(s.title)}" for s in snapshots)
+
+
+def overall_icon(snap):
+    if snap.conflicts:
+        return CONFLICT_ICON
+    return OVERALL_ICONS[snap.ci]
 
 
 def _title_line(snap):
-    link = f'<a href="{snap.url}">{html_escape(pr_key(snap.repo, snap.number))}</a>'
-    return f"{CI_ICONS[snap.ci]} <b>{link}</b> \u2014 {html_escape(snap.title)}"
+    name = snap.repo.partition("/")[2] or snap.repo
+    link = f'<a href="{snap.url}">{html_escape(name)} #{snap.number}</a>'
+    return f"{overall_icon(snap)} {link}"
 
 
-def _status_line(snap):
+def _status_block(snap):
     verdicts = latest_verdicts(snap.reviews)
     review = (
-        " ".join(f"{VERDICT_ICONS[state]}{html_escape(author)}" for author, state in verdicts.items())
+        STATUS_SEPARATOR.join(f"{VERDICT_ICONS[state]} {html_escape(author)}" for author, state in verdicts.items())
         if verdicts
-        else "no reviews"
+        else "\u2796 none yet"
     )
-    merge = "\u26a0\ufe0f conflicts" if snap.conflicts else "merge clean"
-    return f"CI {snap.ci} \u00b7 {review} \u00b7 {merge}"
+    merge = f"{CONFLICT_ICON} conflicts" if snap.conflicts else "\u2705 clean"
+    return "\n".join(
+        (
+            f"<code>CI     </code>{CI_ICONS[snap.ci]} {CI_LABELS[snap.ci]}",
+            f"<code>Review </code>{review}",
+            f"<code>Merge  </code>{merge}",
+        )
+    )
 
 
 def _quote(body):
@@ -147,11 +169,11 @@ def _quote(body):
 
 def _render_note(note):
     if note.kind == "green":
-        return "\U0001f7e2 CI is green"
+        return "\U0001f389 CI passed"
     if note.kind == "conflict":
-        return "\u26a0\ufe0f Merge conflicts with base branch"
+        return f"{CONFLICT_ICON} Merge conflicts with base branch"
     if note.kind == "comment":
-        return f"\U0001f4ac <b>{html_escape(note.author)}</b> commented:{_quote(note.body)}"
+        return f"\U0001f4ac <b>{html_escape(note.author)}</b>{_quote(note.body)}"
     if note.kind == "verdict":
         icon = VERDICT_ICONS[note.verdict]
         verb = VERDICT_VERBS[note.verdict]
