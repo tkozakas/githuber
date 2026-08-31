@@ -1,22 +1,8 @@
 import json
 
 from githuber.blocks import card_blocks, card_fallback, mrkdwn_escape, render_notes_mrkdwn
-from githuber.prs import Note, Snapshot
-
-
-def snap(**overrides):
-    fields = {
-        "repo": "org/repo",
-        "number": 7,
-        "title": "Title",
-        "url": "https://x/7",
-        "sha": "abc",
-        "ci": "green",
-        "conflicts": False,
-        "reviews": (),
-    }
-    fields.update(overrides)
-    return Snapshot(**fields)
+from githuber.prs import Note
+from tests.helpers import make_snapshot as snap
 
 
 def test_card_blocks_structure():

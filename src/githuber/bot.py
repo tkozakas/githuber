@@ -4,37 +4,17 @@ import time
 import urllib.error
 from datetime import UTC, datetime, timedelta
 
-from githuber import prs
+from githuber import commands, prs
 from githuber.channels import SlackChannel, TelegramChannel
 from githuber.config import Config
 from githuber.github import GitHub
 from githuber.slack import Slack
 from githuber.store import Store
 from githuber.telegram import Telegram
-from githuber.webhook import WebhookServer
+from githuber.webhook import HttpServer
 
 FRESH_WINDOW = timedelta(minutes=15)
 UPDATES_TIMEOUT = 10
-
-TOGGLES = {"green": "green", "conflicts": "conflict", "comments": "comment", "verdicts": "verdict"}
-
-COMMANDS = [
-    ("status", "List open PRs with CI and review state"),
-    ("mute", "Mute a repo or PR: /mute org/repo or org/repo#7"),
-    ("unmute", "Unmute a repo or PR"),
-    ("mutes", "List active mutes"),
-    ("disable", "Turn a notification off: /disable comments"),
-    ("enable", "Turn a notification back on"),
-    ("settings", "Show notification toggles"),
-    ("help", "Show available commands"),
-]
-
-
-def parse_command(text):
-    if not text.startswith("/"):
-        return "", ""
-    name, _, arg = text[1:].partition(" ")
-    return name.partition("@")[0].lower(), arg.strip()
 
 
 class Bot:
@@ -51,24 +31,40 @@ class Bot:
         self.login = ""
         self.snapshots = {}
         self.wake = threading.Event()
+        self.lock = threading.Lock()
 
     def run(self):
         self.login = self.gh.login()
         if self.tg:
-            self.tg.register_commands(COMMANDS)
-        if self.cfg.webhook_secret and self.cfg.webhook_port:
-            WebhookServer(self.cfg.webhook_secret, self.cfg.webhook_port, self.wake.set).start()
+            self.tg.register_commands(commands.COMMANDS)
+        if self.cfg.webhook_port and (self.cfg.webhook_secret or self.cfg.slack_signing_secret):
+            HttpServer(
+                self.cfg.webhook_port,
+                self.cfg.webhook_secret,
+                self.cfg.slack_signing_secret,
+                self.wake.set,
+                self.handle_slack_command,
+            ).start()
         print(f"watching PRs by {self.login} on {self.cfg.github_api}", flush=True)
         next_poll = 0.0
         while True:
             if time.monotonic() >= next_poll or self.wake.is_set():
                 self.wake.clear()
-                self._guarded(self.refresh)
+                with self.lock:
+                    self._guarded(self.refresh)
                 next_poll = time.monotonic() + self.cfg.poll_interval
             if self.tg:
                 self._guarded(self.process_updates)
             else:
                 self.wake.wait(UPDATES_TIMEOUT)
+
+    def handle_slack_command(self, text):
+        name, arg = commands.parse(text or "help")
+        with self.lock:
+            reply = commands.dispatch(self.store, self.snapshots, name or "help", arg)
+        if reply is None:
+            reply = commands.dispatch(self.store, self.snapshots, "help", "")
+        return commands.to_mrkdwn(reply)
 
     def refresh(self):
         now = datetime.now(UTC)
@@ -85,7 +81,7 @@ class Bot:
                 continue
             snap, fresh_comments, fresh_reviews = self._inspect(repo, number, item, cutoff)
             snapshots[key] = snap
-            disabled = {TOGGLES[t] for t in self.store.disabled}
+            disabled = {commands.TOGGLES[t] for t in self.store.disabled}
             events = prs.diff_events(self.store.record(key), snap, fresh_comments, fresh_reviews, disabled)
             if events:
                 self._publish(key, snap, events)
@@ -171,42 +167,11 @@ class Bot:
             print(f"retired {key}", flush=True)
 
     def _handle(self, text):
-        name, arg = parse_command(text)
-        if name == "status":
-            self.tg.send(prs.render_status(sorted(self.snapshots.values(), key=lambda s: (s.repo, s.number))))
-        elif name == "mute" and arg:
-            if arg not in self.store.mutes:
-                self.store.mutes.append(arg)
-                self.store.save()
-            self.tg.send(f"Muted {prs.html_escape(arg)}")
-        elif name == "unmute" and arg:
-            if arg in self.store.mutes:
-                self.store.mutes.remove(arg)
-                self.store.save()
-            self.tg.send(f"Unmuted {prs.html_escape(arg)}")
-        elif name == "mutes":
-            body = "\n".join(prs.html_escape(m) for m in self.store.mutes) or "No mutes."
-            self.tg.send(body)
-        elif name in ("disable", "enable"):
-            self._toggle(name, arg)
-        elif name == "settings":
-            self.tg.send(self._settings())
-        elif name == "help":
-            self.tg.send("\n".join(f"/{cmd}: {desc}" for cmd, desc in COMMANDS))
-
-    def _toggle(self, action, arg):
-        if arg not in TOGGLES:
-            self.tg.send(f"Unknown notification. Options: {', '.join(TOGGLES)}")
-            return
-        if action == "disable" and arg not in self.store.disabled:
-            self.store.disabled.append(arg)
-        if action == "enable" and arg in self.store.disabled:
-            self.store.disabled.remove(arg)
-        self.store.save()
-        self.tg.send(self._settings())
-
-    def _settings(self):
-        return "\n".join(f"{name}: {'off' if name in self.store.disabled else 'on'}" for name in TOGGLES)
+        name, arg = commands.parse(text)
+        with self.lock:
+            reply = commands.dispatch(self.store, self.snapshots, name, arg)
+        if reply is not None:
+            self.tg.send(commands.to_html(reply))
 
     def _guarded(self, step):
         try:

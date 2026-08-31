@@ -14,6 +14,7 @@ class Config:
     webhook_port: int = 0
     slack_bot_token: str = ""
     slack_channel: str = ""
+    slack_signing_secret: str = ""
 
     @classmethod
     def from_env(cls):
@@ -28,4 +29,5 @@ class Config:
             webhook_port=int(os.environ.get("WEBHOOK_PORT", "0")),
             slack_bot_token=os.environ.get("SLACK_BOT_TOKEN", ""),
             slack_channel=os.environ.get("SLACK_CHANNEL", ""),
+            slack_signing_secret=os.environ.get("SLACK_SIGNING_SECRET", ""),
         )

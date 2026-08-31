@@ -1,16 +1,16 @@
 import hashlib
 import hmac
 
-from githuber.bot import parse_command
+from githuber.commands import parse as parse_command
 from githuber.store import Store
-from githuber.webhook import WebhookServer
+from githuber.webhook import github_signature_valid
 
 
 def test_parse_command_forms():
     assert parse_command("/status") == ("status", "")
     assert parse_command("/mute org/repo#7") == ("mute", "org/repo#7")
     assert parse_command("/status@githuber_bot") == ("status", "")
-    assert parse_command("plain text") == ("", "")
+    assert parse_command("plain text") == ("plain", "text")
 
 
 def test_store_round_trip(tmp_path):
@@ -41,15 +41,14 @@ def test_store_prune(tmp_path):
 
 
 def test_webhook_signature():
-    server = WebhookServer("secret", 0, lambda: None)
     body = b'{"action": "completed"}'
     good = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
-    assert server._valid(good, body)
-    assert not server._valid("sha256=bad", body)
+    assert github_signature_valid(b"secret", good, body)
+    assert not github_signature_valid(b"secret", "sha256=bad", body)
 
 
 def test_toggles_cover_all_note_kinds():
-    from githuber.bot import TOGGLES
+    from githuber.commands import TOGGLES
 
     assert set(TOGGLES.values()) == {"green", "conflict", "comment", "verdict"}
 
