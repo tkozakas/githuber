@@ -5,8 +5,10 @@ import urllib.error
 from datetime import UTC, datetime, timedelta
 
 from githuber import prs
+from githuber.channels import SlackChannel, TelegramChannel
 from githuber.config import Config
 from githuber.github import GitHub
+from githuber.slack import Slack
 from githuber.store import Store
 from githuber.telegram import Telegram
 from githuber.webhook import WebhookServer
@@ -36,18 +38,24 @@ def parse_command(text):
 
 
 class Bot:
-    def __init__(self, cfg, gh, tg, store):
+    def __init__(self, cfg, gh, store, tg=None, slack=None):
         self.cfg = cfg
         self.gh = gh
-        self.tg = tg
         self.store = store
+        self.tg = tg
+        self.channels = []
+        if tg:
+            self.channels.append(TelegramChannel(tg))
+        if slack:
+            self.channels.append(SlackChannel(slack))
         self.login = ""
         self.snapshots = {}
         self.wake = threading.Event()
 
     def run(self):
         self.login = self.gh.login()
-        self.tg.register_commands(COMMANDS)
+        if self.tg:
+            self.tg.register_commands(COMMANDS)
         if self.cfg.webhook_secret and self.cfg.webhook_port:
             WebhookServer(self.cfg.webhook_secret, self.cfg.webhook_port, self.wake.set).start()
         print(f"watching PRs by {self.login} on {self.cfg.github_api}", flush=True)
@@ -57,7 +65,10 @@ class Bot:
                 self.wake.clear()
                 self._guarded(self.refresh)
                 next_poll = time.monotonic() + self.cfg.poll_interval
-            self._guarded(self.process_updates)
+            if self.tg:
+                self._guarded(self.process_updates)
+            else:
+                self.wake.wait(UPDATES_TIMEOUT)
 
     def refresh(self):
         now = datetime.now(UTC)
@@ -84,8 +95,9 @@ class Bot:
                 self._refresh_card(key, snap)
         self.snapshots = {k: s for k, s in snapshots.items() if not s.closed}
         for key, record in self.store.prs.items():
-            if key not in live and record.get("message_id"):
-                self.tg.delete(record["message_id"])
+            if key not in live and any(record.get(c.id_key) for c in self.channels):
+                for channel in self.channels:
+                    channel.retire(record)
                 print(f"retired {key}", flush=True)
         self.store.prune(live)
         self.store.save()
@@ -138,36 +150,24 @@ class Bot:
 
     def _publish(self, key, snap, events):
         record = self.store.record(key)
-        notes_text = prs.render_notes(events)
-        text = prs.render_card(snap, notes_text)
-        if record.get("message_id"):
-            self.tg.delete(record["message_id"])
-        record["message_id"] = self.tg.send(text)
-        record["notes"] = notes_text
-        record["card"] = text
+        for channel in self.channels:
+            channel.publish(record, snap, events)
         print(f"notified {key}: {[e.kind for e in events]}", flush=True)
 
     def _refresh_card(self, key, snap):
         record = self.store.record(key)
-        message_id = record.get("message_id")
-        if not message_id:
-            return
-        text = prs.render_card(snap, record.get("notes", ""))
-        if text == record.get("card"):
-            return
-        if self.tg.edit(message_id, text):
-            record["card"] = text
+        before = dict(record)
+        for channel in self.channels:
+            channel.refresh(record, snap)
+        if record != before:
             print(f"updated {key}", flush=True)
-        else:
-            record["message_id"] = self.tg.send(text)
-            record["card"] = text
 
     def _retire(self, key):
         record = self.store.record(key)
-        message_id = record.pop("message_id", None)
-        if message_id:
-            self.tg.delete(message_id)
-            record["card"] = ""
+        had_message = any(record.get(c.id_key) for c in self.channels)
+        for channel in self.channels:
+            channel.retire(record)
+        if had_message:
             print(f"retired {key}", flush=True)
 
     def _handle(self, text):
@@ -218,4 +218,8 @@ class Bot:
 
 def main():
     cfg = Config.from_env()
-    Bot(cfg, GitHub(cfg), Telegram(cfg), Store(cfg.state_file)).run()
+    tg = Telegram(cfg) if cfg.telegram_bot_token and cfg.telegram_chat_id else None
+    slack = Slack(cfg) if cfg.slack_bot_token and cfg.slack_channel else None
+    if not tg and not slack:
+        raise SystemExit("configure TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID or SLACK_BOT_TOKEN/SLACK_CHANNEL")
+    Bot(cfg, GitHub(cfg), Store(cfg.state_file), tg=tg, slack=slack).run()

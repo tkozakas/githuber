@@ -1,7 +1,9 @@
 # githuber
 
-Telegram bot that tracks your open GitHub PRs: CI results, reviews, comments,
-and merge conflicts. One live message per PR.
+Notification bot that tracks your open GitHub PRs: CI results, reviews, comments,
+and merge conflicts. One live card per PR, edited in place as state changes and
+removed when the PR is merged or closed. Delivers to Telegram, Slack, or both:
+each channel is enabled simply by defining its environment variables.
 
 ## Why?
 
@@ -18,7 +20,10 @@ Notifies on:
 - Review verdicts: approved / changes requested
 - Merge conflicts with the base branch
 
-## Commands
+At least one channel must be configured. Commands are available on Telegram only;
+in Slack-only mode the bot is one-way.
+
+## Commands (Telegram)
 
 | Command | Description |
 |---------|-------------|
@@ -36,8 +41,10 @@ Notifies on:
 | Variable | Description |
 |----------|-------------|
 | `GITHUB_TOKEN` | Token used to search PRs and read checks |
-| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
+| `TELEGRAM_BOT_TOKEN` | Optional bot token from @BotFather; enables Telegram |
 | `TELEGRAM_CHAT_ID` | Chat to notify (your user id for DMs) |
+| `SLACK_BOT_TOKEN` | Optional bot token (xoxb); enables Slack |
+| `SLACK_CHANNEL` | Slack channel id to post cards to |
 | `GITHUB_API_URL` | API base, default `https://api.github.com` |
 | `POLL_INTERVAL` | Seconds between polls, default `60` |
 | `STATE_FILE` | State path, default `/state/state.json` |
