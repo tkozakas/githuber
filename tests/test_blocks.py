@@ -5,20 +5,29 @@ from githuber.prs import Note
 from tests.helpers import make_snapshot as snap
 
 
-def test_card_blocks_structure():
+def test_card_matches_telegram_layout():
     blocks = card_blocks(snap(), "note line")
-    assert blocks[0]["text"]["text"].startswith(":large_green_circle: *<https://x/7|repo #7>*")
-    fields = {f["text"].split("\n")[0] for f in blocks[1]["fields"]}
-    assert fields == {"*CI*", "*Review*", "*Merge*"}
-    assert blocks[-1]["text"]["text"] == "note line"
+    assert len(blocks) == 1
+    text = blocks[0]["text"]["text"]
+    assert text.startswith("\U0001f7e2 *<https://x/7|repo #7>*\n*Title*")
+    assert "`CI     `\u2705 green" in text
+    assert "`Review `\u2796 none yet" in text
+    assert "`Merge  `\u2705 clean" in text
+    assert text.endswith("note line")
     json.dumps(blocks)
 
 
-def test_card_blocks_conflicts_and_failure():
-    blocks = card_blocks(snap(ci="failed", conflicts=True))
-    assert blocks[0]["text"]["text"].startswith(":warning:")
-    assert ":x: failed" in blocks[1]["fields"][0]["text"]
-    assert ":warning: conflicts" in blocks[1]["fields"][2]["text"]
+def test_card_conflicts_and_failure():
+    text = card_blocks(snap(ci="failed", conflicts=True))[0]["text"]["text"]
+    assert text.startswith("\u26a0\ufe0f ")
+    assert "`CI     `\u274c failed" in text
+    assert "`Merge  `\u26a0\ufe0f conflicts" in text
+
+
+def test_card_reviews():
+    reviews = ({"user": {"login": "bob"}, "state": "APPROVED", "submitted_at": "2026-01-01T00:00:00Z"},)
+    text = card_blocks(snap(reviews=reviews))[0]["text"]["text"]
+    assert "`Review `\u2705 bob" in text
 
 
 def test_render_notes_mrkdwn_quotes_and_escapes():
@@ -30,7 +39,7 @@ def test_render_notes_mrkdwn_quotes_and_escapes():
 
 def test_verdict_note():
     text = render_notes_mrkdwn([Note("verdict", "bob", "", "CHANGES_REQUESTED")])
-    assert text == ":octagonal_sign: *bob* requested changes"
+    assert text == "\U0001f6d1 *bob* requested changes"
 
 
 def test_fallback_and_escape():
