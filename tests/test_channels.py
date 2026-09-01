@@ -88,3 +88,43 @@ def test_retire_deletes():
     channel.retire(record)
     assert channel.removed == [1]
     assert "fake_id" not in record
+
+
+class FakeSlack:
+    def __init__(self):
+        self.channel = "NEW"
+        self.deleted = []
+        self.posted = 0
+
+    def post(self, text, blocks):
+        self.posted += 1
+        return f"ts{self.posted}"
+
+    def update(self, ts, text, blocks):
+        pass
+
+    def delete(self, ts, channel=""):
+        self.deleted.append((ts, channel or self.channel))
+
+
+def test_slack_relocates_on_channel_change():
+    from githuber.channels import SlackChannel
+
+    slack = FakeSlack()
+    channel = SlackChannel(slack)
+    record = {"slack_ts": "ts0", "slack_channel": "OLD", "slack_card": "x", "card": "tg card"}
+    channel.refresh(record, snap())
+    assert slack.deleted == [("ts0", "OLD")]
+    assert record["slack_ts"] == "ts1"
+    assert record["slack_channel"] == "NEW"
+
+
+def test_slack_records_channel_on_publish():
+    from githuber.channels import SlackChannel
+    from githuber.prs import Note
+
+    slack = FakeSlack()
+    channel = SlackChannel(slack)
+    record = {}
+    channel.publish(record, snap(), [Note("green")])
+    assert record["slack_channel"] == "NEW"

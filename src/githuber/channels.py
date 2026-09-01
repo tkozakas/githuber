@@ -76,9 +76,33 @@ class SlackChannel(Channel):
     id_key = "slack_ts"
     card_key = "slack_card"
     notes_key = "slack_notes"
+    channel_key = "slack_channel"
 
     def __init__(self, slack):
         self.slack = slack
+
+    def publish(self, record, snap, events):
+        self._relocate(record)
+        super().publish(record, snap, events)
+        record[self.channel_key] = self.slack.channel
+
+    def refresh(self, record, snap):
+        self._relocate(record)
+        super().refresh(record, snap)
+        if record.get(self.id_key):
+            record[self.channel_key] = self.slack.channel
+
+    def retire(self, record):
+        self._relocate(record)
+        super().retire(record)
+        record.pop(self.channel_key, None)
+
+    def _relocate(self, record):
+        stored = record.get(self.channel_key)
+        if record.get(self.id_key) and stored and stored != self.slack.channel:
+            self.slack.delete(record[self.id_key], stored)
+            record.pop(self.id_key, None)
+            record[self.card_key] = ""
 
     def render(self, snap, notes):
         return (blocks.card_fallback(snap), blocks.card_blocks(snap, notes))

@@ -48,6 +48,6 @@ class Slack:
     def update(self, ts, text, blocks):
         self.call("chat.update", {"channel": self.channel, "ts": ts, "text": text, "blocks": blocks})
 
-    def delete(self, ts):
+    def delete(self, ts, channel=""):
         with contextlib.suppress(SlackError, urllib.error.HTTPError):
-            self.call("chat.delete", {"channel": self.channel, "ts": ts})
+            self.call("chat.delete", {"channel": channel or self.channel, "ts": ts})
