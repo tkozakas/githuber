@@ -128,3 +128,10 @@ def test_slack_records_channel_on_publish():
     record = {}
     channel.publish(record, snap(), [Note("green")])
     assert record["slack_channel"] == "NEW"
+
+
+def test_refresh_bootstraps_from_own_notes():
+    channel = FakeChannel()
+    record = {"fake_notes": "old note", "fake_card": ""}
+    channel.refresh(record, snap())
+    assert record["fake_id"] == 1

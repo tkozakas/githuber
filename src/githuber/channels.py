@@ -26,7 +26,7 @@ class Channel:
         digest = self.digest(body)
         message_id = record.get(self.id_key)
         if not message_id:
-            if any(record.get(key) for key in CARD_KEYS):
+            if any(record.get(key) for key in CARD_KEYS) or self.notes_key in record:
                 record[self.id_key] = self.create(body)
                 record[self.card_key] = digest
             return
@@ -82,27 +82,28 @@ class SlackChannel(Channel):
         self.slack = slack
 
     def publish(self, record, snap, events):
-        self._relocate(record)
+        self._relocate(record, snap)
         super().publish(record, snap, events)
         record[self.channel_key] = self.slack.channel
 
     def refresh(self, record, snap):
-        self._relocate(record)
+        self._relocate(record, snap)
         super().refresh(record, snap)
         if record.get(self.id_key):
             record[self.channel_key] = self.slack.channel
 
     def retire(self, record):
-        self._relocate(record)
-        super().retire(record)
         record.pop(self.channel_key, None)
+        super().retire(record)
 
-    def _relocate(self, record):
+    def _relocate(self, record, snap):
         stored = record.get(self.channel_key)
         if record.get(self.id_key) and stored and stored != self.slack.channel:
             self.slack.delete(record[self.id_key], stored)
-            record.pop(self.id_key, None)
-            record[self.card_key] = ""
+            body = self.render(snap, record.get(self.notes_key, ""))
+            record[self.id_key] = self.create(body)
+            record[self.card_key] = self.digest(body)
+            record[self.channel_key] = self.slack.channel
 
     def render(self, snap, notes):
         return (blocks.card_fallback(snap), blocks.card_blocks(snap, notes))
