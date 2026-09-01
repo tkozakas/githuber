@@ -111,8 +111,8 @@ class Bot:
     def _search(self, cutoff):
         items = {}
         for query in (
-            f"is:pr is:open author:{self.login}",
-            f"is:pr author:{self.login} is:merged merged:>={cutoff}",
+            f"is:pr is:open author:{self.login} draft:false archived:false",
+            f"is:pr author:{self.login} is:merged archived:false merged:>={cutoff}",
         ):
             for item in self.gh.search_prs(query):
                 items[item["repository_url"] + str(item["number"])] = item
