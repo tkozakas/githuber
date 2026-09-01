@@ -20,21 +20,22 @@ Notifies on:
 - Review verdicts: approved / changes requested
 - Merge conflicts with the base branch
 
-At least one channel must be configured. Commands are available on Telegram only;
-in Slack-only mode the bot is one-way.
+At least one channel must be configured. Commands work identically on both channels:
+on Telegram as chat commands (`/status`), on Slack through the `/githuber` slash command
+(`/githuber status`), backed by the same handlers.
 
-## Commands (Telegram)
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/status` | List open PRs with CI and review state |
-| `/mute org/repo` or `/mute org/repo#7` | Silence a repo or a single PR |
-| `/unmute <target>` | Remove a mute |
-| `/mutes` | List active mutes |
-| `/disable comments` | Turn a notification type off (green, conflicts, comments, verdicts) |
-| `/enable comments` | Turn it back on |
-| `/settings` | Show notification toggles |
-| `/help` | Show commands |
+| `status` | List open PRs with CI and review state |
+| `mute org/repo` or `mute org/repo#7` | Silence a repo or a single PR |
+| `unmute <target>` | Remove a mute |
+| `mutes` | List active mutes |
+| `disable comments` | Turn a notification type off (green, conflicts, comments, verdicts) |
+| `enable comments` | Turn it back on |
+| `settings` | Show notification toggles |
+| `help` | Show commands |
 
 ## Configuration
 
