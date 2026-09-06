@@ -46,7 +46,6 @@ on Telegram as chat commands (`/status`), on Slack through the `/githuber` slash
 | `TELEGRAM_CHAT_ID` | Chat to notify (your user id for DMs) |
 | `SLACK_BOT_TOKEN` | Optional bot token (xoxb); enables Slack |
 | `SLACK_CHANNEL` | Slack channel id to post cards to |
-| `POLL_INTERVAL` | Seconds between polls, default `60` |
 | `WEBHOOK_SECRET` | Optional GitHub webhook secret; enables instant refresh |
 | `WEBHOOK_PORT` | Optional port for the webhook listener |
 
