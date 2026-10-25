@@ -1,59 +1,59 @@
 # githuber
 
-Notification bot that tracks your open GitHub PRs: CI results, reviews, comments,
-and merge conflicts. One live card per PR, edited in place as state changes and
-removed when the PR is merged or closed. Delivers to Telegram, Slack, or both:
-each channel is enabled simply by defining its environment variables.
-
-## Why?
-
-The GitHub app just doesn't have enough for me. It pings me about all kinds of useless
-stuff, but the things I actually wait for? Silence. CI finally went green on my PR:
-nothing. Someone merged ahead of me and now my PR has conflicts: nothing, I find out
-when I open the page. I just want to be aware of these things without checking
-the tab every five minutes, and GitHub does not give me this. So this bot does.
+Telegram/Slack bot for your open GitHub PRs. One live card per PR, updated in place and removed on merge or close.
 
 Notifies on:
 
-- CI going green (once per commit)
-- New comments and review comments from others
-- Review verdicts: approved / changes requested
-- Merge conflicts with the base branch
+- CI going green
+- New comments and reviews
+- Approvals and change requests
+- Merge conflicts
 
-At least one channel must be configured. Commands work identically on both channels:
-on Telegram as chat commands (`/status`), on Slack through the `/githuber` slash command
-(`/githuber status`), backed by the same handlers.
+<details>
+<summary><b>Why?</b></summary>
 
-## Commands
+GitHub notifies about plenty of noise but stays silent on what I actually wait for: CI turning green, or a conflict after someone merges ahead of me. This bot tells me so I don't have to keep checking the tab.
+
+</details>
+
+<details>
+<summary><b>Commands</b></summary>
+
+Telegram: `/status`. Slack: `/githuber status`.
 
 | Command | Description |
 |---------|-------------|
-| `status` | List open PRs with CI and review state |
-| `mute org/repo` or `mute org/repo#7` | Silence a repo or a single PR |
+| `status` | Open PRs with CI and review state |
+| `mute org/repo` or `mute org/repo#7` | Silence a repo or PR |
 | `unmute <target>` | Remove a mute |
-| `mutes` | List active mutes |
-| `disable comments` | Turn a notification type off (green, conflicts, comments, verdicts) |
-| `enable comments` | Turn it back on |
-| `settings` | Show notification toggles |
+| `mutes` | List mutes |
+| `disable <type>` / `enable <type>` | Toggle `green`, `conflicts`, `comments`, `verdicts` |
+| `settings` | Show toggles |
 | `help` | Show commands |
 
-## Configuration
+</details>
+
+<details>
+<summary><b>Configuration</b></summary>
+
+Configure at least one channel; defining its variables enables it.
 
 | Variable | Description |
 |----------|-------------|
-| `GITHUB_TOKEN` | Token used to search PRs and read checks |
-| `TELEGRAM_BOT_TOKEN` | Optional bot token from @BotFather; enables Telegram |
-| `TELEGRAM_CHAT_ID` | Chat to notify (your user id for DMs) |
-| `SLACK_BOT_TOKEN` | Optional bot token (xoxb); enables Slack |
-| `SLACK_CHANNEL` | Slack channel id to post cards to |
-| `WEBHOOK_SECRET` | Optional GitHub webhook secret; enables instant refresh |
-| `WEBHOOK_PORT` | Optional port for the webhook listener |
+| `GITHUB_TOKEN` | Reads PRs and checks |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Enable Telegram |
+| `SLACK_BOT_TOKEN`, `SLACK_CHANNEL` | Enable Slack |
+| `WEBHOOK_SECRET`, `WEBHOOK_PORT` | Optional instant refresh via GitHub webhooks |
+| `POLL_INTERVAL` | Polling interval in seconds when webhooks are off |
 
-When `WEBHOOK_SECRET` and `WEBHOOK_PORT` are set, the bot also listens for GitHub webhooks
-(`check_suite`, `pull_request`, reviews, comments) and refreshes immediately on delivery.
-If you don't set these, the bot polls instead, every `POLL_INTERVAL` seconds.
+</details>
 
-## Development
+<details>
+<summary><b>Run & develop</b></summary>
+
+```sh
+docker compose up -d
+```
 
 ```sh
 uv sync
@@ -61,8 +61,4 @@ uv run --group dev pytest tests
 uv run --group dev ruff check .
 ```
 
-## Running
-
-```sh
-docker compose up -d
-```
+</details>
