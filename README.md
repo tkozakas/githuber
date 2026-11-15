@@ -43,6 +43,7 @@ Configure at least one channel; defining its variables enables it.
 | `GITHUB_TOKEN` | Reads PRs and checks |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Enable Telegram |
 | `SLACK_BOT_TOKEN`, `SLACK_CHANNEL` | Enable Slack |
+| `SLACK_SIGNING_SECRET` | Enables `/githuber` slash commands (needs `WEBHOOK_PORT`) |
 | `WEBHOOK_SECRET`, `WEBHOOK_PORT` | Optional instant refresh via GitHub webhooks |
 | `POLL_INTERVAL` | Polling interval in seconds when webhooks are off |
 
