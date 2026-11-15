@@ -2,6 +2,8 @@
 
 Telegram/Slack bot for your open GitHub PRs. One live card per PR, updated in place and removed on merge or close.
 
+![PR card updating from CI running to green to approved, in Telegram and Slack](docs/card.gif)
+
 Notifies on:
 
 - CI going green
@@ -44,7 +46,7 @@ Configure at least one channel; defining its variables enables it.
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Enable Telegram |
 | `SLACK_BOT_TOKEN`, `SLACK_CHANNEL` | Enable Slack |
 | `SLACK_SIGNING_SECRET` | Enables `/githuber` slash commands (needs `WEBHOOK_PORT`) |
-| `WEBHOOK_SECRET`, `WEBHOOK_PORT` | Optional instant refresh via GitHub webhooks |
+| `WEBHOOK_SECRET`, `WEBHOOK_PORT` | Optional instant refresh via GitHub webhooks; compose publishes `WEBHOOK_PORT` (default 8080) |
 | `POLL_INTERVAL` | Polling interval in seconds when webhooks are off |
 
 </details>
